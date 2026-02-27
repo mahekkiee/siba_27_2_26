@@ -25,16 +25,33 @@ if uploaded_file is not None:
     st.subheader("Dataset Preview")
     st.dataframe(df.head())
 
-    target_column = st.selectbox("Select Target Column", df.columns)
+    # STEP 1 — Select Model Type First
+    problem_type = st.radio(
+        "Select Problem Type",
+        ["Classification", "Regression"]
+    )
+
+    # Automatically filter valid targets
+    if problem_type == "Classification":
+        possible_targets = [
+            col for col in df.columns
+            if df[col].dtype == "object" or df[col].nunique() < 15
+        ]
+    else:
+        possible_targets = [
+            col for col in df.columns
+            if df[col].dtype != "object"
+        ]
+
+    if not possible_targets:
+        st.error("No valid target columns available for selected model type.")
+        st.stop()
+
+    target_column = st.selectbox("Select Target Column", possible_targets)
 
     feature_columns = st.multiselect(
         "Select Feature Columns",
         [col for col in df.columns if col != target_column]
-    )
-
-    problem_type = st.radio(
-        "Select Problem Type",
-        ["Classification", "Regression"]
     )
 
     test_size = st.slider("Select Test Size (%)", 10, 50, 30) / 100
@@ -50,12 +67,13 @@ if uploaded_file is not None:
 
             if problem_type == "Classification":
 
+                # Encode target
                 if y.dtype == "object":
                     le = LabelEncoder()
                     y = le.fit_transform(y)
                     class_labels = le.classes_
                 else:
-                    class_labels = sorted(y.unique())
+                    class_labels = sorted(np.unique(y))
 
                 X_train, X_test, y_train, y_test = train_test_split(
                     X,
@@ -70,12 +88,12 @@ if uploaded_file is not None:
 
                 y_test_pred = model.predict(X_test)
 
-                st.subheader("Accuracy")
-                st.write("Test Accuracy:", round(accuracy_score(y_test, y_test_pred), 4))
+                st.subheader("Test Accuracy")
+                st.write(round(accuracy_score(y_test, y_test_pred), 4))
 
                 cm = confusion_matrix(y_test, y_test_pred)
 
-                st.subheader("Confusion Matrix (Test Data)")
+                st.subheader("Confusion Matrix")
 
                 fig, ax = plt.subplots()
                 im = ax.imshow(cm, cmap="Blues")
@@ -116,4 +134,3 @@ if uploaded_file is not None:
                 st.subheader("Regression Metrics")
                 st.write("R²:", round(r2_score(y_test, y_test_pred), 4))
                 st.write("MSE:", round(mean_squared_error(y_test, y_test_pred), 4))
-                st.info("Confusion matrix is only available for classification.")
