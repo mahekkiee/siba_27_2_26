@@ -1,18 +1,17 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 from sklearn.naive_bayes import GaussianNB
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, accuracy_score
 
-st.title("Naive Bayes Classifier (Custom Dataset)")
+st.title("Naive Bayes Classifier with Confusion Matrix")
 
 uploaded_file = st.file_uploader("Upload CSV Dataset", type=["csv"])
 
 if uploaded_file is not None:
 
     df = pd.read_csv(uploaded_file)
-    st.write("Dataset Preview:")
+    st.write("Dataset Preview")
     st.dataframe(df.head())
 
     target_column = st.selectbox("Select Target Variable", df.columns)
@@ -27,14 +26,15 @@ if uploaded_file is not None:
         X = df[feature_columns]
         y = df[target_column]
 
-        # Ensure numeric features
+        # Convert categorical features if any
         X = pd.get_dummies(X)
 
-        # 30% training, 70% testing
+        # 30% training, 70% testing with stratification
         X_train, X_test, y_train, y_test = train_test_split(
             X, y,
             train_size=0.30,
-            random_state=42
+            random_state=42,
+            stratify=y
         )
 
         if st.button("Train Model"):
@@ -51,14 +51,22 @@ if uploaded_file is not None:
             test_acc = accuracy_score(y_test, y_test_pred)
 
             st.subheader("Accuracy")
-            st.write("Training Accuracy:", train_acc)
-            st.write("Testing Accuracy:", test_acc)
+            st.write("Training Accuracy:", round(train_acc, 4))
+            st.write("Testing Accuracy:", round(test_acc, 4))
 
-            # Confusion Matrices
+            # Ensure full class labels appear
+            labels = sorted(y.unique())
+
+            train_cm = confusion_matrix(
+                y_train, y_train_pred, labels=labels
+            )
+
+            test_cm = confusion_matrix(
+                y_test, y_test_pred, labels=labels
+            )
+
             st.subheader("Confusion Matrix - Training Data")
-            train_cm = confusion_matrix(y_train, y_train_pred)
-            st.write(train_cm)
+            st.write(pd.DataFrame(train_cm, index=labels, columns=labels))
 
             st.subheader("Confusion Matrix - Testing Data")
-            test_cm = confusion_matrix(y_test, y_test_pred)
-            st.write(test_cm)
+            st.write(pd.DataFrame(test_cm, index=labels, columns=labels))
